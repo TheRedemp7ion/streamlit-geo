@@ -201,7 +201,7 @@ if ready:
 
     # Display results
     st.success("Captured & stamped!")
-    st.image(stamped, caption="Stamped preview", use_column_width=True)
+    st.image(stamped, caption="Stamped preview", use_container_width=True)
 
     # Downloads
     with open(overlay_path, "rb") as f:
