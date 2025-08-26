@@ -129,7 +129,7 @@ st.subheader("1) Take a photo")
 photo = st.camera_input("Tap to open your camera and take a snapshot")
 st.subheader("2) Get your location")
 st.caption("Click the button below and allow your browser to share location.")
-loc = geolocation()
+loc = streamlit_geolocation()
 lat = loc.get("latitude") if isinstance(loc, dict) else None
 lon = loc.get("longitude") if isinstance(loc, dict) else None
 acc = loc.get("accuracy") if isinstance(loc, dict) else None
