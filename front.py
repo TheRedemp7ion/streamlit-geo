@@ -127,3 +127,115 @@ ensure_dir("captures")
 # ----------------------------
 st.subheader("1) Take a photo")
 photo = st.camera_input("Tap to open your camera and take a snapshot")
+st.subheader("2) Get your location")
+st.caption("Click the button below and allow your browser to share location.")
+loc = geolocation()
+lat = loc.get("latitude") if isinstance(loc, dict) else None
+lon = loc.get("longitude") if isinstance(loc, dict) else None
+acc = loc.get("accuracy") if isinstance(loc, dict) else None
+
+if lat and lon:
+    st.success(f"Location: {lat:.6f}, {lon:.6f} (±{acc:.0f} m)" if acc else f"Location: {lat:.6f}, {lon:.6f}")
+    # Quick map preview
+    st.pydeck_chart(pdk.Deck(
+        map_style="mapbox://styles/mapbox/light-v9",
+        initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=14, pitch=0),
+        layers=[
+            pdk.Layer(
+                "ScatterplotLayer",
+                data=pd.DataFrame({"lat": [lat], "lon": [lon]}),
+                get_position='[lon, lat]',
+                get_radius=10,
+                pickable=True,
+            )
+        ],
+    ))
+else:
+    st.info("No location yet. Click the 'Get Location' button above.")
+
+# ----------------------------
+# Process & Save
+# ----------------------------
+st.subheader("3) Save & stamp your capture")
+
+ready = (photo is not None) and (lat is not None and lon is not None)
+if not ready:
+    st.warning("Waiting for both photo and location…")
+
+if ready:
+    # Time metadata
+    t_local = now_local()
+    t_utc = datetime.utcnow().replace(tzinfo=ZoneInfo("UTC"))
+    local_iso = t_local.isoformat(timespec="seconds")
+    utc_iso = t_utc.isoformat(timespec="seconds")
+
+    # Reverse geocode (best-effort)
+    with st.spinner("Resolving address…"):
+        address = reverse_geocode(lat, lon)
+
+    # Compose overlay text
+    lines = [
+        f"Local Time: {local_iso}",
+        f"UTC Time:   {utc_iso}",
+        f"Coords:     {lat:.6f}, {lon:.6f}",
+    ]
+    if acc:
+        lines.append(f"Accuracy:   ±{acc:.0f} m")
+    if address:
+        lines.append(f"Address:    {address}")
+    overlay_text = "\n".join(lines)
+
+    # Load PIL image from uploaded file
+    image = Image.open(photo)
+
+    # Draw overlay
+    stamped = draw_overlay(image, overlay_text)
+
+    # Persist files
+    stamp = t_local.strftime("%Y%m%d_%H%M%S")
+    base = f"captures/capture_{stamp}"
+    raw_path = f"{base}.jpg"
+    overlay_path = f"{base}_stamped.jpg"
+    image.save(raw_path, format="JPEG", quality=95)
+    stamped.save(overlay_path, format="JPEG", quality=95)
+
+    # Display results
+    st.success("Captured & stamped!")
+    st.image(stamped, caption="Stamped preview", use_column_width=True)
+
+    # Downloads
+    with open(overlay_path, "rb") as f:
+        st.download_button("Download stamped image", f, file_name=os.path.basename(overlay_path), mime="image/jpeg")
+
+    meta = CaptureRecord(
+        timestamp_local_iso=local_iso,
+        timestamp_utc_iso=utc_iso,
+        latitude=float(lat),
+        longitude=float(lon),
+        accuracy_m=float(acc) if acc else None,
+        address=address,
+        image_path=raw_path,
+        overlay_path=overlay_path,
+    )
+
+    meta_json = json.dumps(asdict(meta), indent=2)
+    st.download_button("Download metadata (JSON)", meta_json, file_name=f"{base}.json", mime="application/json")
+
+    # Save to session state table
+    st.session_state.records.append(meta)
+
+# ----------------------------
+# History / Table
+# ----------------------------
+st.subheader("📒 Session history")
+if st.session_state.records:
+    df = pd.DataFrame([asdict(r) for r in st.session_state.records])
+    st.dataframe(df, use_container_width=True)
+    if st.button("Clear session history"):
+        st.session_state.records = []
+        st.experimental_rerun()
+else:
+    st.caption("No captures yet this session.")
+
+st.markdown("---")
+st.caption("Built with Streamlit • Reverse geocoding via OpenStreetMap Nominatim (best-effort)")
