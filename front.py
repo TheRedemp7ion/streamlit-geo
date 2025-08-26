@@ -12,7 +12,7 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
-from streamlit_geolocation import geolocation
+from streamlit_geolocation import streamlit_geolocation
 
 # ----------------------------
 # App Config
