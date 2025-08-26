@@ -99,7 +99,7 @@ def draw_overlay(img: Image.Image, text: str) -> Image.Image:
     y1 = y0 + rect_height
 
     # Black rectangle with 70% opacity overlay
-    overlay = Image.new("RGBA", (rect_width, rect_height), (0, 0, 0, 180))
+    overlay = Image.new("RGBA", (int(rect_width), int(rect_height)), (0, 0, 0, 180))
     im_rgba = im.convert("RGBA")
     im_rgba.paste(overlay, (x0, y0), overlay)
     draw = ImageDraw.Draw(im_rgba)
